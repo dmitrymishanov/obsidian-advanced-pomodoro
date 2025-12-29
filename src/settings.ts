@@ -7,13 +7,15 @@ export interface TimerSettings {
 	breakInterval: number;
 	longBreakInterval: number;
 	longBreakIntervalCount: number;
+	enableCyclicMode: boolean;
+	autoStartRestPeriod: boolean;
 }
 
 export interface LoggingSettings {
 	enabled: boolean;
 	logOn: 'start' | 'end';
-	logTo: 'daily' | 'file' | 'note';
-	file: string;
+	logTo: 'daily' | 'current' | 'custom';
+	customLogFile: string;
 	timestampFormat: string;
 	appendPomodoroSize: boolean;
 	appendActiveNote: boolean;
@@ -31,13 +33,15 @@ export const DEFAULT_TIMER_SETTINGS: TimerSettings = {
 	breakInterval: 5,
 	longBreakInterval: 15,
 	longBreakIntervalCount: 4,
+	enableCyclicMode: false,
+	autoStartRestPeriod: true,
 }
 
 export const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
 	enabled: true,
 	logOn: 'start',
-	logTo: 'file',
-	file: 'Pomodoro Log.md',
+	logTo: 'custom',
+	customLogFile: 'Pomodoro Log.md',
 	timestampFormat: '[🍅] [[[]YYYY-mm-DD[]]] HH:mm',
 	appendPomodoroSize: true,
 	appendActiveNote: true,
@@ -62,6 +66,8 @@ export class SampleSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
+		// TODO: refactor 
+
 		/**************  Timer settings **************/
 		containerEl.createEl('h2', { text: 'Timer Settings' });
 		new Setting(containerEl)
@@ -69,9 +75,7 @@ export class SampleSettingTab extends PluginSettingTab {
 			.addText(text => text
 				.setValue(this.plugin.settings.timer.workInterval.toString())
 				.onChange(async (value) => {
-					console.log('BEFORE', value, DEFAULT_TIMER_SETTINGS.workInterval, this.plugin.settings.timer.workInterval);
-					this.plugin.settings.timer.workInterval = setInteger(value, DEFAULT_TIMER_SETTINGS.workInterval, this.plugin.settings.timer.workInterval);
-					console.log('AFTER', this.plugin.settings.timer.workInterval);
+					this.plugin.settings.timer.workInterval = setInteger(value, DEFAULT_TIMER_SETTINGS.workInterval);
 					await this.plugin.saveSettings();
 				}));
 		new Setting(containerEl)
@@ -106,6 +110,101 @@ export class SampleSettingTab extends PluginSettingTab {
 					this.plugin.settings.timer.longBreakIntervalCount = setInteger(value, DEFAULT_TIMER_SETTINGS.longBreakIntervalCount);
 					await this.plugin.saveSettings();
 				}));
+		new Setting(containerEl)
+			.setName('Enable cyclic mode')
+			.setDesc('Automatically start new pomodoro.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.timer.enableCyclicMode)
+				.onChange(async (value) => {
+					this.plugin.settings.timer.enableCyclicMode = value;
+					await this.plugin.saveSettings();
+				}));
+		new Setting(containerEl)
+			.setName('Auto-start rest period')
+			.setDesc('In non-cyclic mode, automatically start the break period when the pomodoro ends.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.timer.autoStartRestPeriod)
+				.onChange(async (value) => {
+					this.plugin.settings.timer.autoStartRestPeriod = value;
+					await this.plugin.saveSettings();
+				}));
+
+		/**************  Logging settings **************/
+		containerEl.createEl('br');
+		containerEl.createEl('hr');
+		containerEl.createEl('h2', { text: 'Logging Settings' });
+
+		new Setting(containerEl)
+			.setName('Enable logging')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.logging.enabled)
+				.onChange(async (value) => {
+					this.plugin.settings.logging.enabled = value;
+					await this.plugin.saveSettings();
+					// force refresh to show/hide the logging settings
+					this.display();
+				}));
+		if (this.plugin.settings.logging.enabled) {
+			new Setting(containerEl)
+				.setName('When to log')
+				.addDropdown(dropdown => dropdown
+					.addOption('start', 'When the pomodoro starts')
+					.addOption('end', 'When the pomodoro ends')
+					.setValue(this.plugin.settings.logging.logOn)
+					.onChange(async (value) => {
+						this.plugin.settings.logging.logOn = value;
+						await this.plugin.saveSettings();
+					}));
+			new Setting(containerEl)
+				.setName('Log to')
+				.addDropdown(dropdown => dropdown
+					.addOption('daily', 'Daily note')
+					.addOption('current', 'Active note')
+					.addOption('custom', 'Custom file')
+					.setValue(this.plugin.settings.logging.logTo)
+					.onChange(async (value) => {
+						this.plugin.settings.logging.logTo = value;
+						await this.plugin.saveSettings();
+						// force refresh to show/hide the custom log file input
+						this.display();
+					}));
+			if (this.plugin.settings.logging.logTo === 'custom') {
+				new Setting(containerEl)
+					.setName('Log file path')
+					.setDesc('If the file does not exist, it will be created.')
+					.addText(text => text
+						.setValue(this.plugin.settings.logging.customLogFile)
+						.onChange(async (value) => {
+							this.plugin.settings.logging.customLogFile = value || DEFAULT_LOGGING_SETTINGS.customLogFile;
+							await this.plugin.saveSettings();
+						}));
+			}
+			new Setting(containerEl)
+				.setName('Timestamp format')
+				.setDesc('Use momentjs format.')
+				.addText(text => text
+					.setValue(this.plugin.settings.logging.timestampFormat)
+					.onChange(async (value) => {
+						this.plugin.settings.logging.timestampFormat = value;
+						await this.plugin.saveSettings();
+					}));
+			new Setting(containerEl)
+				.setName('Append pomodoro size')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.logging.appendPomodoroSize)
+					.onChange(async (value) => {
+						this.plugin.settings.logging.appendPomodoroSize = value;
+						await this.plugin.saveSettings();
+					}));
+			new Setting(containerEl)
+				.setName('Append active note')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.logging.appendActiveNote)
+					.onChange(async (value) => {
+						this.plugin.settings.logging.appendActiveNote = value;
+						await this.plugin.saveSettings();
+					}));
+		}
 	}
 }
 
