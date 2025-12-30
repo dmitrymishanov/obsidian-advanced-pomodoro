@@ -53,7 +53,7 @@ export const DEFAULT_SETTINGS: AdvancedPomodoroSettings = {
 	logging: DEFAULT_LOGGING_SETTINGS,
 }
 
-export class SampleSettingTab extends PluginSettingTab {
+export class AdvancedPomodoroSettingTab extends PluginSettingTab {
 	plugin: AdvancedPomodoroPlugin;
 
 	constructor(app: App, plugin: AdvancedPomodoroPlugin) {
