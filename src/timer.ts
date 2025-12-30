@@ -1,5 +1,3 @@
-import {Plugin} from 'obsidian';
-
 export enum TimerState {
 	Idle = 'idle',
 	Running = 'running',

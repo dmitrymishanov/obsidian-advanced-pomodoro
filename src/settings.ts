@@ -69,7 +69,9 @@ export class AdvancedPomodoroSettingTab extends PluginSettingTab {
 		// TODO: refactor 
 
 		/**************  Timer settings **************/
-		containerEl.createEl('h2', { text: 'Timer Settings' });
+		new Setting(containerEl)
+			.setName('Timer')
+			.setHeading();
 		new Setting(containerEl)
 			.setName('Default pomodoro time (minutes)')
 			.addText(text => text
@@ -120,7 +122,7 @@ export class AdvancedPomodoroSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 		new Setting(containerEl)
-			.setName('Auto-start rest period')
+			.setName('Auto-start break period')
 			.setDesc('In non-cyclic mode, automatically start the break period when the pomodoro ends.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.timer.autoStartRestPeriod)
@@ -130,9 +132,9 @@ export class AdvancedPomodoroSettingTab extends PluginSettingTab {
 				}));
 
 		/**************  Logging settings **************/
-		containerEl.createEl('br');
-		containerEl.createEl('hr');
-		containerEl.createEl('h2', { text: 'Logging Settings' });
+		new Setting(containerEl)
+			.setName('Logging')
+			.setHeading();
 
 		new Setting(containerEl)
 			.setName('Enable logging')
