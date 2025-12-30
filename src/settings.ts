@@ -154,7 +154,7 @@ export class AdvancedPomodoroSettingTab extends PluginSettingTab {
 					.addOption('end', 'When the pomodoro ends')
 					.setValue(this.plugin.settings.logging.logOn)
 					.onChange(async (value) => {
-						this.plugin.settings.logging.logOn = value;
+						this.plugin.settings.logging.logOn = value as 'start' | 'end';
 						await this.plugin.saveSettings();
 					}));
 			new Setting(containerEl)
@@ -165,7 +165,7 @@ export class AdvancedPomodoroSettingTab extends PluginSettingTab {
 					.addOption('custom', 'Custom file')
 					.setValue(this.plugin.settings.logging.logTo)
 					.onChange(async (value) => {
-						this.plugin.settings.logging.logTo = value;
+						this.plugin.settings.logging.logTo = value as 'daily' | 'current' | 'custom';
 						await this.plugin.saveSettings();
 						// force refresh to show/hide the custom log file input
 						this.display();
