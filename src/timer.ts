@@ -20,10 +20,31 @@ export class Timer {
         this._state = value;
         this.callbacks.onStateChange?.(value);
     }
-	private remainingSeconds: number = 0;
-	private intervalId: number | null = null;
-	private callbacks: TimerCallbacks;
 
+	private _remainingSeconds: number = 0;
+	get remainingSeconds() {
+		return this._remainingSeconds;
+	}
+	set remainingSeconds(value: number) {
+		this._remainingSeconds = value;
+		this.callbacks.onTick?.(value);
+		if (value == 0) {
+			this.finish()
+		}
+	}
+
+	private _intervalId: number | null = null;
+	get intervalId(): number | null {
+		return this._intervalId;
+	}
+	set intervalId(value: number | null) {
+		this._intervalId = value;
+		if (value !== null) {
+			this.callbacks.onSetInterval?.(value);
+		}
+	}
+
+	private callbacks: TimerCallbacks;
 	constructor(callbacks: TimerCallbacks = {}) {
 		this.callbacks = callbacks;
 	}
@@ -53,7 +74,17 @@ export class Timer {
 		if (this.state !== TimerState.Paused) {
 			return;
 		}
+		// immediately reduce remaining time to show that timer is working
+		this.remainingSeconds--;
 		this.run();
+	}
+
+	togglePause(): void {
+		if (this.state == TimerState.Paused) {
+			this.resume();
+		} else if (this.state == TimerState.Running) {
+			this.pause();
+		}
 	}
 
 	stop(): void {
@@ -66,14 +97,8 @@ export class Timer {
 	private run(): void {
 		this.state = TimerState.Running;
 		this.intervalId = window.setInterval(() => {
-			if (this.remainingSeconds > 0) {
-				this.remainingSeconds--;
-				this.callbacks.onTick?.(this.remainingSeconds);
-			} else {
-				this.finish();
-			}
+			this.remainingSeconds--;
 		}, 1000);
-		this.callbacks.onSetInterval?.(this.intervalId);
 	}
 
 	private finish(): void {
@@ -83,7 +108,6 @@ export class Timer {
 		}
 
 		this.state = TimerState.Finished;
-		this.remainingSeconds = 0;
 	}
 
 	destroy(): void {
