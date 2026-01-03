@@ -7,7 +7,7 @@ export enum TimerState {
 
 export interface TimerCallbacks {
 	onTick?: (remainingSeconds: number) => void;
-	onStateChange?: (state: TimerState) => void;
+	onStateChange?: (oldState: TimerState, newState: TimerState) => void;
     onSetInterval?: (intervalId: number) => void;
 }
 
@@ -17,8 +17,9 @@ export class Timer {
         return this._state;
     }
     set state(value: TimerState) {
+		const oldState = this._state;
         this._state = value;
-        this.callbacks.onStateChange?.(value);
+        this.callbacks.onStateChange?.(oldState, value);
     }
 
 	private _remainingSeconds: number = 0;
@@ -87,13 +88,6 @@ export class Timer {
 		}
 	}
 
-	stop(): void {
-		if (this.state === TimerState.Idle || this.state === TimerState.Finished) {
-			return;
-		}
-        this.finish();
-	}
-
 	private run(): void {
 		this.state = TimerState.Running;
 		this.intervalId = window.setInterval(() => {
@@ -101,7 +95,10 @@ export class Timer {
 		}, 1000);
 	}
 
-	private finish(): void {
+	finish(): void {
+		if (this.state === TimerState.Idle || this.state === TimerState.Finished) {
+			return;
+		}
 		if (this.intervalId !== null) {
 			window.clearInterval(this.intervalId);
 			this.intervalId = null;
@@ -110,7 +107,8 @@ export class Timer {
 		this.state = TimerState.Finished;
 	}
 
-	destroy(): void {
+	stop(): void {
+		this.state = TimerState.Idle;
 		if (this.intervalId !== null) {
 			window.clearInterval(this.intervalId);
 			this.intervalId = null;

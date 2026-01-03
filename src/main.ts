@@ -16,21 +16,66 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	timer: Timer;
 	private workState: WorkState = WorkState.Idle;
 	statusBarEl: any
+	pomodorosCount: number = 0;
 
 	async onload() {
 		await this.prepareSettings();
 
 		this.initializeStatusBar();
-		this.stayIdle();
+		this.initializeTimer();
 		
+		this.stayIdle();
 
+		this.addCommands();
+	}
+
+	addCommands() {
+		this.addCommand({
+			id: 'start-pomodoro',
+			name: 'Start Pomodoro',
+			icon: 'timer',
+			callback: () => {
+				if (this.workState === WorkState.Idle) {
+					this.startPomodoro();
+				}
+			},
+		});
+		this.addCommand({
+			id: 'toggle-pause',
+			name: 'Pause / Resume',
+			icon: 'pause',
+			callback: () => this.timer.togglePause(),
+		});
+		this.addCommand({
+			id: 'finish-interval',
+			name: 'Finish Interval',
+			icon: 'circle-check-big',
+			callback: () => this.timer.finish(),
+		});
+		this.addCommand({
+			id: 'stop-timer',
+			name: 'Stop Timer',
+			icon: 'square',
+			callback: () => this.stayIdle(),
+		});
+	}
+	
+	initializeTimer() {
 		this.timer = new Timer({
 			onTick: (remainingSeconds: number) => {
 				this.statusBarEl.setText(`${this.getIcon()} ${formatTime(remainingSeconds)}`);
 			},
-			onStateChange: (state: TimerState) => {
-				if (state == TimerState.Finished) {
+			onStateChange: (oldState: TimerState, newState: TimerState) => {
+				if ((oldState == TimerState.Idle || oldState == TimerState.Finished) && newState == TimerState.Running && this.settings.logging.logOn == 'start') {
+					// TODO log on start
+				}
+				if (newState == TimerState.Finished) {
+					if (this.workState == WorkState.Work && this.settings.logging.logOn == 'end') {
+						// TODO log
+					}
+
 					if (this.workState == WorkState.Work && (this.settings.timer.enableCyclicMode || this.settings.timer.autoStartRestPeriod)) {
+						
 						this.takeBreak()
 					} else if (this.workState == WorkState.Break && this.settings.timer.enableCyclicMode) {
 						this.startPomodoro()
@@ -42,7 +87,6 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 			onSetInterval: (intervalId: number) => this.registerInterval(intervalId),
 		});
 	}
-
 	initializeStatusBar() {
 		this.statusBarEl = this.addStatusBarItem();
 		this.statusBarEl.onClickEvent(() => {
@@ -55,16 +99,20 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	}
 
 	stayIdle() {
+		this.pomodorosCount = 0;
 		this.workState = WorkState.Idle;
 		this.statusBarEl.setText('Start 🍅');
+		this.timer.stop();
 	}
 	startPomodoro() {
 		this.workState = WorkState.Work;
 		this.timer.start(this.settings.timer.workInterval);
 	}
 	takeBreak() {
+		this.pomodorosCount++;
 		this.workState = WorkState.Break;
-		this.timer.start(this.settings.timer.breakInterval);
+		const interval = this.pomodorosCount % this.settings.timer.longBreakIntervalCount == 0 ? this.settings.timer.longBreakInterval : this.settings.timer.breakInterval;
+		this.timer.start(interval);
 	}
 
 	getIcon(): string {
@@ -78,7 +126,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	}
 
 	onunload() {
-		this.timer.destroy();
+		this.timer.stop();
 	}
 
 	async prepareSettings() {
