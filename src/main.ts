@@ -3,6 +3,7 @@ import {Plugin} from 'obsidian';
 import {DEFAULT_SETTINGS, AdvancedPomodoroSettings, AdvancedPomodoroSettingTab} from "./settings";
 import { Timer, TimerState } from './timer';
 import { formatTime } from './formatters';
+import { Logger } from './logger';
 
 
 enum WorkState {
@@ -17,6 +18,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	private workState: WorkState = WorkState.Idle;
 	statusBarEl: any
 	pomodorosCount: number = 0;
+	logger: Logger;
 
 	async onload() {
 		await this.prepareSettings();
@@ -27,6 +29,8 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 		this.stayIdle();
 
 		this.addCommands();
+
+		this.logger = new Logger(this.app);
 	}
 
 	addCommands() {
@@ -59,23 +63,15 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 			callback: () => this.stayIdle(),
 		});
 	}
-	
+
 	initializeTimer() {
 		this.timer = new Timer({
 			onTick: (remainingSeconds: number) => {
 				this.statusBarEl.setText(`${this.getIcon()} ${formatTime(remainingSeconds)}`);
 			},
 			onStateChange: (oldState: TimerState, newState: TimerState) => {
-				if ((oldState == TimerState.Idle || oldState == TimerState.Finished) && newState == TimerState.Running && this.settings.logging.logOn == 'start') {
-					// TODO log on start
-				}
 				if (newState == TimerState.Finished) {
-					if (this.workState == WorkState.Work && this.settings.logging.logOn == 'end') {
-						// TODO log
-					}
-
 					if (this.workState == WorkState.Work && (this.settings.timer.enableCyclicMode || this.settings.timer.autoStartRestPeriod)) {
-						
 						this.takeBreak()
 					} else if (this.workState == WorkState.Break && this.settings.timer.enableCyclicMode) {
 						this.startPomodoro()
@@ -107,12 +103,18 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	startPomodoro() {
 		this.workState = WorkState.Work;
 		this.timer.start(this.settings.timer.workInterval);
+		if (this.settings.logging.logOn == 'start') {
+			this.logger.log(this.settings.timer.workInterval, this.app.workspace.getActiveFile()?.path, this.settings.logging);
+		}
 	}
 	takeBreak() {
 		this.pomodorosCount++;
 		this.workState = WorkState.Break;
 		const interval = this.pomodorosCount % this.settings.timer.longBreakIntervalCount == 0 ? this.settings.timer.longBreakInterval : this.settings.timer.breakInterval;
 		this.timer.start(interval);
+		if (this.settings.logging.logOn == 'end') {
+			this.logger.log(interval, this.app.workspace.getActiveFile()?.path, this.settings.logging);
+		}
 	}
 
 	getIcon(): string {
