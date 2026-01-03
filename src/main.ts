@@ -122,7 +122,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 			return '🍅'
 		}
 		if (this.workState == WorkState.Break) {
-			return 'palm'
+			return '☕️'
 		}
 		return ''
 	}
