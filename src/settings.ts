@@ -191,12 +191,3 @@ function setInteger(value: string, defaultValue: number){
 	}
 	return Number(value);
 }
-
-function setIntegerArray(value: string, defaultValue: number[]){
-	const numbers = value.split(",").map(Number);
-	if (numbers.some(number => !Number.isInteger(number) || (number <= 0))) {
-		new Notice("Please specify a comma-separated list of positive integers.");
-		return defaultValue;
-	}
-	return numbers;
-}

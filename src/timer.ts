@@ -7,7 +7,7 @@ export enum TimerState {
 
 export interface TimerCallbacks {
 	onTick?: (remainingSeconds: number) => void;
-	onStateChange?: (oldState: TimerState, newState: TimerState) => void;
+	onStateChange?: (oldState: TimerState, newState: TimerState) => Promise<void>;
     onSetInterval?: (intervalId: number) => void;
 }
 
@@ -19,7 +19,7 @@ export class Timer {
     set state(value: TimerState) {
 		const oldState = this._state;
         this._state = value;
-        this.callbacks.onStateChange?.(oldState, value);
+        this.callbacks.onStateChange?.(oldState, value).catch(console.error);
     }
 
 	private _remainingSeconds: number = 0;

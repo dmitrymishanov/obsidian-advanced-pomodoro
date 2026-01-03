@@ -16,7 +16,7 @@ export class Logger {
 		try {
 			let logLine = this.formatTimestamp(settings);
 			if (settings.appendPomodoroSize) {
-				logLine += ` ${pomodoroSize}min`;
+				logLine += ` ${pomodoroSize}m`;
 			}
 
 			if (settings.appendActiveNote && activeNote) {
@@ -39,6 +39,5 @@ export class Logger {
         const moment = (window as any).moment;
         return moment().format(settings.timestampFormat);
     }
-
 }
 

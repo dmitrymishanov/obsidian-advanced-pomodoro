@@ -69,12 +69,12 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 			onTick: (remainingSeconds: number) => {
 				this.statusBarEl.setText(`${this.getIcon()} ${formatTime(remainingSeconds)}`);
 			},
-			onStateChange: (oldState: TimerState, newState: TimerState) => {
+			onStateChange: async (oldState: TimerState, newState: TimerState) => {
 				if (newState == TimerState.Finished) {
 					if (this.workState == WorkState.Work && (this.settings.timer.enableCyclicMode || this.settings.timer.autoStartRestPeriod)) {
-						this.takeBreak()
+						await this.takeBreak()
 					} else if (this.workState == WorkState.Break && this.settings.timer.enableCyclicMode) {
-						this.startPomodoro()
+						await this.startPomodoro()
 					} else {
 						this.stayIdle();
 					}
@@ -100,20 +100,20 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 		this.statusBarEl.setText('Start 🍅');
 		this.timer.stop();
 	}
-	startPomodoro() {
+	async startPomodoro() {
 		this.workState = WorkState.Work;
-		this.timer.start(this.settings.timer.workInterval);
+		this.timer.start(this.settings.timer.workInterval * 60);
 		if (this.settings.logging.logOn == 'start') {
-			this.logger.log(this.settings.timer.workInterval, this.app.workspace.getActiveFile()?.path, this.settings.logging);
+			await this.logger.log(this.settings.timer.workInterval, this.app.workspace.getActiveFile()?.path, this.settings.logging);
 		}
 	}
-	takeBreak() {
+	async takeBreak() {
 		this.pomodorosCount++;
 		this.workState = WorkState.Break;
 		const interval = this.pomodorosCount % this.settings.timer.longBreakIntervalCount == 0 ? this.settings.timer.longBreakInterval : this.settings.timer.breakInterval;
-		this.timer.start(interval);
+		this.timer.start(interval * 60);
 		if (this.settings.logging.logOn == 'end') {
-			this.logger.log(interval, this.app.workspace.getActiveFile()?.path, this.settings.logging);
+			await this.logger.log(interval, this.app.workspace.getActiveFile()?.path, this.settings.logging);
 		}
 	}
 
