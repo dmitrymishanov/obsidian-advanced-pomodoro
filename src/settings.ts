@@ -3,7 +3,6 @@ import AdvancedPomodoroPlugin from "./main";
 
 export interface TimerSettings {
 	workInterval: number;
-	workIntervalOptions: number[];
 	breakInterval: number;
 	longBreakInterval: number;
 	longBreakIntervalCount: number;
@@ -14,8 +13,7 @@ export interface TimerSettings {
 export interface LoggingSettings {
 	enabled: boolean;
 	logOn: 'start' | 'end';
-	logTo: 'daily' | 'current' | 'custom';
-	customLogFile: string;
+	logFile: string;
 	timestampFormat: string;
 	appendPomodoroSize: boolean;
 	appendActiveNote: boolean;
@@ -29,7 +27,6 @@ export interface AdvancedPomodoroSettings {
 
 export const DEFAULT_TIMER_SETTINGS: TimerSettings = {
 	workInterval: 25,
-	workIntervalOptions: [25, 50, 75],
 	breakInterval: 5,
 	longBreakInterval: 15,
 	longBreakIntervalCount: 4,
@@ -40,8 +37,7 @@ export const DEFAULT_TIMER_SETTINGS: TimerSettings = {
 export const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
 	enabled: true,
 	logOn: 'start',
-	logTo: 'custom',
-	customLogFile: 'Pomodoro Log.md',
+	logFile: 'Pomodoro Log.md',
 	timestampFormat: '[🍅] [[[]YYYY-mm-DD[]]] HH:mm',
 	appendPomodoroSize: true,
 	appendActiveNote: true,
@@ -78,14 +74,6 @@ export class AdvancedPomodoroSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.timer.workInterval.toString())
 				.onChange(async (value) => {
 					this.plugin.settings.timer.workInterval = setInteger(value, DEFAULT_TIMER_SETTINGS.workInterval);
-					await this.plugin.saveSettings();
-				}));
-		new Setting(containerEl)
-			.setName('Pomodoro time options (minutes)')
-			.addText(text => text
-				.setValue(this.plugin.settings.timer.workIntervalOptions.join(","))
-				.onChange(async (value) => {
-					this.plugin.settings.timer.workIntervalOptions = setIntegerArray(value, DEFAULT_TIMER_SETTINGS.workIntervalOptions);
 					await this.plugin.saveSettings();
 				}));
 		new Setting(containerEl)
@@ -158,29 +146,14 @@ export class AdvancedPomodoroSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}));
 			new Setting(containerEl)
-				.setName('Log to')
-				.addDropdown(dropdown => dropdown
-					.addOption('daily', 'Daily note')
-					.addOption('current', 'Active note')
-					.addOption('custom', 'Custom file')
-					.setValue(this.plugin.settings.logging.logTo)
+				.setName('Log file path')
+				.setDesc('If the file does not exist, it will be created.')
+				.addText(text => text
+					.setValue(this.plugin.settings.logging.logFile)
 					.onChange(async (value) => {
-						this.plugin.settings.logging.logTo = value as 'daily' | 'current' | 'custom';
+						this.plugin.settings.logging.logFile = value || DEFAULT_LOGGING_SETTINGS.logFile;
 						await this.plugin.saveSettings();
-						// force refresh to show/hide the custom log file input
-						this.display();
 					}));
-			if (this.plugin.settings.logging.logTo === 'custom') {
-				new Setting(containerEl)
-					.setName('Log file path')
-					.setDesc('If the file does not exist, it will be created.')
-					.addText(text => text
-						.setValue(this.plugin.settings.logging.customLogFile)
-						.onChange(async (value) => {
-							this.plugin.settings.logging.customLogFile = value || DEFAULT_LOGGING_SETTINGS.customLogFile;
-							await this.plugin.saveSettings();
-						}));
-			}
 			new Setting(containerEl)
 				.setName('Timestamp format')
 				.setDesc('Use momentjs format.')
