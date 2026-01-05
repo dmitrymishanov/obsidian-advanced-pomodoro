@@ -2,7 +2,6 @@ import {Plugin} from 'obsidian';
 
 import {DEFAULT_SETTINGS, AdvancedPomodoroSettings, AdvancedPomodoroSettingTab} from "./settings";
 import { Timer, TimerState } from './timer';
-import { formatTime } from './formatters';
 import { Logger } from './logger';
 
 
@@ -19,6 +18,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	statusBarEl: any
 	pomodorosCount: number = 0;
 	logger: Logger;
+	intervalId: number | null = null;
 
 	async onload() {
 		await this.prepareSettings();
@@ -48,7 +48,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 			id: 'toggle-pause',
 			name: 'Pause / Resume',
 			icon: 'pause',
-			callback: () => this.timer.togglePause(),
+			callback: () => this.toggleTimerPause(),
 		});
 		this.addCommand({
 			id: 'finish-interval',
@@ -66,11 +66,14 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 
 	initializeTimer() {
 		this.timer = new Timer({
-			onTick: (remainingSeconds: number) => {
-				this.statusBarEl.setText(`${this.getIcon()} ${formatTime(remainingSeconds)}`);
-			},
 			onStateChange: async (oldState: TimerState, newState: TimerState) => {
-				if (newState == TimerState.Finished) {
+				if (newState !== TimerState.Running) {
+					this.clearUpdateStatusBarInterval();
+				}
+				
+				if (newState == TimerState.Running) {
+					this.setUpdateStatusBarInterval();
+				} else if (newState == TimerState.Finished) {
 					if (this.workState == WorkState.Work && (this.settings.timer.enableCyclicMode || this.settings.timer.autoStartRestPeriod)) {
 						await this.takeBreak()
 					} else if (this.workState == WorkState.Break && this.settings.timer.enableCyclicMode) {
@@ -80,16 +83,16 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 					}
 				}
 			},
-			onSetInterval: (intervalId: number) => this.registerInterval(intervalId),
 		});
 	}
+
 	initializeStatusBar() {
 		this.statusBarEl = this.addStatusBarItem();
 		this.statusBarEl.onClickEvent(() => {
 			if (this.workState == WorkState.Idle) {
 				this.startPomodoro()
 			} else {
-				this.timer.togglePause();
+				this.toggleTimerPause();
 			}
 		})
 	}
@@ -102,7 +105,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	}
 	async startPomodoro() {
 		this.workState = WorkState.Work;
-		this.timer.start(this.settings.timer.workInterval * 60);
+		this.timer.start(this.settings.timer.workInterval * 1000 * 60);
 		if (this.settings.logging.logOn == 'start') {
 			await this.logger.log(this.settings.timer.workInterval, this.app.workspace.getActiveFile()?.path, this.settings.logging);
 		}
@@ -111,9 +114,35 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 		this.pomodorosCount++;
 		this.workState = WorkState.Break;
 		const interval = this.pomodorosCount % this.settings.timer.longBreakIntervalCount == 0 ? this.settings.timer.longBreakInterval : this.settings.timer.breakInterval;
-		this.timer.start(interval * 60);
+		this.timer.start(interval * 1000 * 60);
 		if (this.settings.logging.logOn == 'end') {
 			await this.logger.log(interval, this.app.workspace.getActiveFile()?.path, this.settings.logging);
+		}
+	}
+
+	toggleTimerPause() {
+		if (this.timer.state == TimerState.Paused) {
+			this.timer.resume();
+		} else if (this.timer.state == TimerState.Running) {
+			this.timer.pause();
+		}
+	}
+
+	setUpdateStatusBarInterval() {
+		this.intervalId = this.registerInterval(window.setInterval(() => {
+			this.timer.updateRemainingMilliseconds();
+			if (this.timer.remainingMilliseconds <= 0) {
+				this.timer.finish();
+			} else {
+				this.statusBarEl.setText(`${this.getIcon()} ${this.timer.getFormattedTime()}`);
+			}
+		}, 100));
+	}
+
+	clearUpdateStatusBarInterval() {
+		if (this.intervalId !== null) {
+			window.clearInterval(this.intervalId);
+			this.intervalId = null;
 		}
 	}
 
@@ -128,7 +157,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	}
 
 	onunload() {
-		this.timer.stop();
+		this.clearUpdateStatusBarInterval();
 	}
 
 	async prepareSettings() {

@@ -6,9 +6,7 @@ export enum TimerState {
 }
 
 export interface TimerCallbacks {
-	onTick?: (remainingSeconds: number) => void;
-	onStateChange?: (oldState: TimerState, newState: TimerState) => Promise<void>;
-    onSetInterval?: (intervalId: number) => void;
+	onStateChange: (oldState: TimerState, newState: TimerState) => Promise<void>;
 }
 
 export class Timer {
@@ -19,55 +17,30 @@ export class Timer {
     set state(value: TimerState) {
 		const oldState = this._state;
         this._state = value;
-        this.callbacks.onStateChange?.(oldState, value).catch(console.error);
+        this.callbacks.onStateChange(oldState, value).catch(console.error);
     }
 
-	private _remainingSeconds: number = 0;
-	get remainingSeconds() {
-		return this._remainingSeconds;
-	}
-	set remainingSeconds(value: number) {
-		this._remainingSeconds = value;
-		this.callbacks.onTick?.(value);
-		if (value == 0) {
-			this.finish()
-		}
-	}
-
-	private _intervalId: number | null = null;
-	get intervalId(): number | null {
-		return this._intervalId;
-	}
-	set intervalId(value: number | null) {
-		this._intervalId = value;
-		if (value !== null) {
-			this.callbacks.onSetInterval?.(value);
-		}
-	}
-
+	remainingMilliseconds: number = 0;
+	// is not null only when timer is running
+	private endTime: Date | null = null;;
 	private callbacks: TimerCallbacks;
-	constructor(callbacks: TimerCallbacks = {}) {
+
+	constructor(callbacks: TimerCallbacks) {
 		this.callbacks = callbacks;
 	}
 
-	start(seconds: number): void {
+	start(milliseconds: number): void {
 		if (this.state === TimerState.Running) {
 			return;
 		}
-		this.remainingSeconds = seconds;
-		this.run();
+		this.remainingMilliseconds = milliseconds;
+		this.run(milliseconds);
 	}
 
 	pause(): void {
 		if (this.state !== TimerState.Running) {
 			return;
 		}
-
-		if (this.intervalId !== null) {
-			window.clearInterval(this.intervalId);
-			this.intervalId = null;
-		}
-
 		this.state = TimerState.Paused;
 	}
 
@@ -75,44 +48,38 @@ export class Timer {
 		if (this.state !== TimerState.Paused) {
 			return;
 		}
-		// immediately reduce remaining time to show that timer is working
-		this.remainingSeconds--;
-		this.run();
+		this.run(this.remainingMilliseconds);
 	}
 
-	togglePause(): void {
-		if (this.state == TimerState.Paused) {
-			this.resume();
-		} else if (this.state == TimerState.Running) {
-			this.pause();
-		}
-	}
-
-	private run(): void {
+	private run(milliseconds: number): void {
+		this.endTime = new Date(Date.now() + milliseconds);
 		this.state = TimerState.Running;
-		this.intervalId = window.setInterval(() => {
-			this.remainingSeconds--;
-		}, 1000);
 	}
 
 	finish(): void {
 		if (this.state === TimerState.Idle || this.state === TimerState.Finished) {
 			return;
 		}
-		if (this.intervalId !== null) {
-			window.clearInterval(this.intervalId);
-			this.intervalId = null;
-		}
-
+		this.endTime = null;
+		this.remainingMilliseconds = 0;
 		this.state = TimerState.Finished;
+
 	}
 
 	stop(): void {
+		this.endTime = null;
+		this.remainingMilliseconds = 0;
 		this.state = TimerState.Idle;
-		if (this.intervalId !== null) {
-			window.clearInterval(this.intervalId);
-			this.intervalId = null;
+	}
+
+	updateRemainingMilliseconds(): void {
+		if (this.state === TimerState.Running && this.endTime !== null) {
+			this.remainingMilliseconds = (this.endTime?.getTime() || 0) - Date.now();
 		}
+	}
+	getFormattedTime(): string {
+		const remainingSeconds = Math.floor(this.remainingMilliseconds / 1000);
+		return `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`
 	}
 }
 
