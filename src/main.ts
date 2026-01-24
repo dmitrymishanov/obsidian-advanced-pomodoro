@@ -4,6 +4,7 @@ import {DEFAULT_SETTINGS, AdvancedPomodoroSettings, AdvancedPomodoroSettingTab} 
 import { Timer, TimerState } from './timer';
 import { Logger } from './logger';
 import { playNotificationSound } from './notifications';
+import { getNoteTimerSettings } from './note-settings';
 
 
 enum WorkState {
@@ -109,18 +110,39 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	}
 	async startPomodoro() {
 		this.workState = WorkState.Work;
-		this.timer.start(this.settings.timer.workInterval * 1000 * 60);
+		
+		// Get work interval from note frontmatter or use default
+		const activeFile = this.app.workspace.getActiveFile();
+		const noteSettings = await getNoteTimerSettings(this.app, activeFile);
+		const workInterval = noteSettings.workInterval ?? this.settings.timer.workInterval;
+		
+		this.timer.start(workInterval * 1000 * 60);
 		if (this.settings.logging.logOn == 'start') {
-			await this.logger.log(this.settings.timer.workInterval, this.app.workspace.getActiveFile()?.path, this.settings.logging);
+			await this.logger.log(workInterval, activeFile?.path, this.settings.logging);
 		}
 	}
 	async takeBreak() {
 		this.pomodorosCount++;
 		this.workState = WorkState.Break;
-		const interval = this.pomodorosCount % this.settings.timer.longBreakIntervalCount == 0 ? this.settings.timer.longBreakInterval : this.settings.timer.breakInterval;
+		
+		const activeFile = this.app.workspace.getActiveFile();
+		
+		// Check if long break is needed
+		const isLongBreak = this.pomodorosCount % this.settings.timer.longBreakIntervalCount == 0;
+		
+		let interval: number;
+		if (isLongBreak) {
+			// Long break always uses global setting
+			interval = this.settings.timer.longBreakInterval;
+		} else {
+			// Get short break interval from note frontmatter or use default
+			const noteSettings = await getNoteTimerSettings(this.app, activeFile);
+			interval = noteSettings.breakInterval ?? this.settings.timer.breakInterval;
+		}
+		
 		this.timer.start(interval * 1000 * 60);
 		if (this.settings.logging.logOn == 'end') {
-			await this.logger.log(interval, this.app.workspace.getActiveFile()?.path, this.settings.logging);
+			await this.logger.log(interval, activeFile?.path, this.settings.logging);
 		}
 	}
 
