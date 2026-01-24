@@ -1,15 +1,16 @@
 import { App, TFile } from 'obsidian';
 
-export interface NoteTimerSettings {
+export interface NoteSettings {
 	workInterval?: number;
 	breakInterval?: number;
+	logNote?: string;
 }
 
 /**
  * Reads per-note timer settings from the frontmatter of the active file.
  */
-export async function getNoteTimerSettings(app: App, file: TFile | null): Promise<NoteTimerSettings> {
-	const noteSettings: NoteTimerSettings = {};
+export function getNoteSettings(app: App, file: TFile | null): NoteSettings {
+	const noteSettings: NoteSettings = {};
 
 	if (!file) {
 		return noteSettings;
@@ -33,6 +34,20 @@ export async function getNoteTimerSettings(app: App, file: TFile | null): Promis
 		const value = Number(frontmatter.pomodoroBreakInterval);
 		if (Number.isInteger(value) && value > 0) {
 			noteSettings.breakInterval = value;
+		}
+	}
+
+	if (frontmatter.pomodoroLogNote !== undefined) {
+		const value = frontmatter.pomodoroLogNote;
+		if (typeof value === 'string' && value.trim() !== '') {
+			noteSettings.logNote = value.trim();
+		} else if (Array.isArray(value)) {
+			const items = value
+				.filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+				.map(item => item.trim());
+			if (items.length > 0) {
+				noteSettings.logNote = items.join(', ');
+			}
 		}
 	}
 

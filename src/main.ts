@@ -4,7 +4,7 @@ import {DEFAULT_SETTINGS, AdvancedPomodoroSettings, AdvancedPomodoroSettingTab} 
 import { Timer, TimerState } from './timer';
 import { Logger } from './logger';
 import { playNotificationSound } from './notifications';
-import { getNoteTimerSettings } from './note-settings';
+import { getNoteSettings } from './note-settings';
 
 
 enum WorkState {
@@ -113,12 +113,12 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 		
 		// Get work interval from note frontmatter or use default
 		const activeFile = this.app.workspace.getActiveFile();
-		const noteSettings = await getNoteTimerSettings(this.app, activeFile);
+		const noteSettings = getNoteSettings(this.app, activeFile);
 		const workInterval = noteSettings.workInterval ?? this.settings.timer.workInterval;
 		
 		this.timer.start(workInterval * 1000 * 60);
 		if (this.settings.logging.logOn == 'start') {
-			await this.logger.log(workInterval, activeFile?.path, this.settings.logging);
+			await this.logger.log(workInterval, activeFile, this.settings.logging);
 		}
 	}
 	async takeBreak() {
@@ -126,6 +126,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 		this.workState = WorkState.Break;
 		
 		const activeFile = this.app.workspace.getActiveFile();
+		const noteSettings = getNoteSettings(this.app, activeFile);
 		
 		// Check if long break is needed
 		const isLongBreak = this.pomodorosCount % this.settings.timer.longBreakIntervalCount == 0;
@@ -136,13 +137,12 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 			interval = this.settings.timer.longBreakInterval;
 		} else {
 			// Get short break interval from note frontmatter or use default
-			const noteSettings = await getNoteTimerSettings(this.app, activeFile);
 			interval = noteSettings.breakInterval ?? this.settings.timer.breakInterval;
 		}
 		
 		this.timer.start(interval * 1000 * 60);
 		if (this.settings.logging.logOn == 'end') {
-			await this.logger.log(interval, activeFile?.path, this.settings.logging);
+			await this.logger.log(interval, activeFile, this.settings.logging);
 		}
 	}
 

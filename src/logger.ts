@@ -1,5 +1,6 @@
 import { App, TFile } from "obsidian";
 import { LoggingSettings } from "./settings";
+import { getNoteSettings } from "./note-settings";
 
 export class Logger {
 	private app: App;
@@ -8,7 +9,7 @@ export class Logger {
 		this.app = app;
 	}
 
-	async log(pomodoroSize: number, activeNote: string | undefined, settings: LoggingSettings): Promise<void> {
+	async log(pomodoroSize: number, activeFile: TFile | null, settings: LoggingSettings): Promise<void> {
 		if (!settings.enabled) {
 			return;
 		}
@@ -19,12 +20,15 @@ export class Logger {
 				logLine += ` ${pomodoroSize}m`;
 			}
 
-			if (settings.appendActiveNote && activeNote) {
-				logLine += ` [[${activeNote}]]`;
+			if (settings.appendActiveNote && activeFile) {
+				const noteText = this.getNoteTextForLog(activeFile);
+				if (noteText) {
+					logLine += ` ${noteText}`;
+				}
 			}
 
 			const file = this.app.vault.getAbstractFileByPath(settings.logFile);
-            if (!file || !(file instanceof TFile)) {
+			if (!file || !(file instanceof TFile)) {
 				await this.app.vault.create(settings.logFile, "");
 			}
 			if (file instanceof TFile) {
@@ -35,9 +39,19 @@ export class Logger {
 		}
 	}
 
+
+	private getNoteTextForLog(activeFile: TFile): string | undefined {
+		const noteSettings = getNoteSettings(this.app, activeFile);
+		if (noteSettings.logNote) {
+			return `${noteSettings.logNote} ([[${activeFile.basename}]])`;
+		}
+
+		return `[[${activeFile.basename}]]`;
+	}
+
 	private formatTimestamp(settings: LoggingSettings): string {
-        const moment = (window as any).moment;
-        return moment().format(settings.timestampFormat);
-    }
+		const moment = (window as any).moment;
+		return moment().format(settings.timestampFormat);
+	}
 }
 
