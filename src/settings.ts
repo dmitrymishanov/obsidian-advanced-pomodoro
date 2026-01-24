@@ -19,10 +19,14 @@ export interface LoggingSettings {
 	appendActiveNote: boolean;
 }
 
+export interface NotificationSettings {
+	enableSoundNotification: boolean;
+}
 
 export interface AdvancedPomodoroSettings {
 	timer: TimerSettings;
 	logging: LoggingSettings;
+	notification: NotificationSettings;
 }
 
 export const DEFAULT_TIMER_SETTINGS: TimerSettings = {
@@ -43,10 +47,15 @@ export const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
 	appendActiveNote: true,
 }
 
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+	enableSoundNotification: true,
+}
+
 // TODO other settings
 export const DEFAULT_SETTINGS: AdvancedPomodoroSettings = {
 	timer: DEFAULT_TIMER_SETTINGS,
 	logging: DEFAULT_LOGGING_SETTINGS,
+	notification: DEFAULT_NOTIFICATION_SETTINGS,
 }
 
 export class AdvancedPomodoroSettingTab extends PluginSettingTab {
@@ -178,8 +187,22 @@ export class AdvancedPomodoroSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.logging.appendActiveNote = value;
 						await this.plugin.saveSettings();
-					}));
+				}));
 		}
+
+		/**************  Notification settings **************/
+		new Setting(containerEl)
+			.setName('Notifications')
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName('Enable sound notification')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.notification.enableSoundNotification)
+				.onChange(async (value) => {
+					this.plugin.settings.notification.enableSoundNotification = value;
+					await this.plugin.saveSettings();
+				}));
 	}
 }
 

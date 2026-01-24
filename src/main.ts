@@ -3,6 +3,7 @@ import {Plugin} from 'obsidian';
 import {DEFAULT_SETTINGS, AdvancedPomodoroSettings, AdvancedPomodoroSettingTab} from "./settings";
 import { Timer, TimerState } from './timer';
 import { Logger } from './logger';
+import { playNotificationSound } from './notifications';
 
 
 enum WorkState {
@@ -74,6 +75,9 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 				if (newState == TimerState.Running) {
 					this.setUpdateStatusBarInterval();
 				} else if (newState == TimerState.Finished) {
+					if (this.settings.notification.enableSoundNotification) {
+						playNotificationSound();
+					}
 					if (this.workState == WorkState.Work && (this.settings.timer.enableCyclicMode || this.settings.timer.autoStartRestPeriod)) {
 						await this.takeBreak()
 					} else if (this.workState == WorkState.Break && this.settings.timer.enableCyclicMode) {
@@ -161,7 +165,19 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	}
 
 	async prepareSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<AdvancedPomodoroSettings>);
+		const loadedData = await this.loadData() as Partial<AdvancedPomodoroSettings> || {};
+		const mergedSettings: Partial<AdvancedPomodoroSettings> = {};
+		
+		for (const key in DEFAULT_SETTINGS) {
+			const sectionKey = key as keyof AdvancedPomodoroSettings;
+			mergedSettings[sectionKey] = Object.assign(
+				{},
+				DEFAULT_SETTINGS[sectionKey],
+				loadedData[sectionKey]
+			) as any;
+		}
+		
+		this.settings = mergedSettings as AdvancedPomodoroSettings;
 		this.addSettingTab(new AdvancedPomodoroSettingTab(this.app, this));
 	}
 
