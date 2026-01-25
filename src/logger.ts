@@ -27,6 +27,14 @@ export class Logger {
 				}
 			}
 
+			// Add tags from note settings
+			if (activeFile) {
+				const noteSettings = getNoteSettings(this.app, activeFile);
+				if (noteSettings.logTags) {
+					logLine += ` tags: ${noteSettings.logTags}`;
+				}
+			}
+
 			const file = this.app.vault.getAbstractFileByPath(settings.logFile);
 			if (!file || !(file instanceof TFile)) {
 				await this.app.vault.create(settings.logFile, "");

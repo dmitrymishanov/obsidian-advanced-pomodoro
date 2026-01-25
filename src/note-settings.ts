@@ -4,6 +4,7 @@ export interface NoteSettings {
 	workInterval?: number;
 	breakInterval?: number;
 	logNote?: string;
+	logTags?: string;
 }
 
 /**
@@ -47,6 +48,20 @@ export function getNoteSettings(app: App, file: TFile | null): NoteSettings {
 				.map(item => item.trim());
 			if (items.length > 0) {
 				noteSettings.logNote = items.join(', ');
+			}
+		}
+	}
+
+	if (frontmatter.pomodoroLogTags !== undefined) {
+		const value = frontmatter.pomodoroLogTags;
+		if (typeof value === 'string' && value.trim() !== '') {
+			noteSettings.logTags = value.trim();
+		} else if (Array.isArray(value)) {
+			const items = value
+				.filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+				.map(item => item.trim());
+			if (items.length > 0) {
+				noteSettings.logTags = items.join(' ');
 			}
 		}
 	}
