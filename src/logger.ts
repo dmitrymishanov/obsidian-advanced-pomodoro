@@ -20,21 +20,19 @@ export class Logger {
 				logLine += ` ${pomodoroSize}m`;
 			}
 
+			const noteSettings = getNoteSettings(this.app, activeFile);
 			if (settings.appendActiveNote && activeFile) {
-				const noteText = this.getNoteTextForLog(activeFile);
-				if (noteText) {
-					logLine += ` ${noteText}`;
+				if (noteSettings.logNotes) {
+					logLine +=  ` ${noteSettings.logNotes} ([[${activeFile.basename}]])`;
+				} else {
+					logLine += ` [[${activeFile.basename}]]`;
 				}
 			}
 
-			// Add tags from note settings
-			if (activeFile) {
-				const noteSettings = getNoteSettings(this.app, activeFile);
-				if (noteSettings.logTags) {
-					logLine += ` tags: ${noteSettings.logTags}`;
-				}
+			if (noteSettings.logTags) {
+				logLine += ` tags: ${noteSettings.logTags}`;
 			}
-
+			
 			const file = this.app.vault.getAbstractFileByPath(settings.logFile);
 			if (!file || !(file instanceof TFile)) {
 				await this.app.vault.create(settings.logFile, "");
@@ -45,16 +43,6 @@ export class Logger {
 		} catch (error) {
 			console.error("Failed to write log:", error);
 		}
-	}
-
-
-	private getNoteTextForLog(activeFile: TFile): string | undefined {
-		const noteSettings = getNoteSettings(this.app, activeFile);
-		if (noteSettings.logNote) {
-			return `${noteSettings.logNote} ([[${activeFile.basename}]])`;
-		}
-
-		return `[[${activeFile.basename}]]`;
 	}
 
 	private formatTimestamp(settings: LoggingSettings): string {

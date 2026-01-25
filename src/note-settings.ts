@@ -3,7 +3,7 @@ import { App, TFile } from 'obsidian';
 export interface NoteSettings {
 	workInterval?: number;
 	breakInterval?: number;
-	logNote?: string;
+	logNotes?: string;
 	logTags?: string;
 }
 
@@ -38,16 +38,16 @@ export function getNoteSettings(app: App, file: TFile | null): NoteSettings {
 		}
 	}
 
-	if (frontmatter.pomodoroLogNote !== undefined) {
-		const value = frontmatter.pomodoroLogNote;
+	if (frontmatter.pomodoroLogNotes !== undefined) {
+		const value = frontmatter.pomodoroLogNotes;
 		if (typeof value === 'string' && value.trim() !== '') {
-			noteSettings.logNote = value.trim();
+			noteSettings.logNotes = value.trim();
 		} else if (Array.isArray(value)) {
 			const items = value
 				.filter((item): item is string => typeof item === 'string' && item.trim() !== '')
 				.map(item => item.trim());
 			if (items.length > 0) {
-				noteSettings.logNote = items.join(', ');
+				noteSettings.logNotes = items.join(', ');
 			}
 		}
 	}
