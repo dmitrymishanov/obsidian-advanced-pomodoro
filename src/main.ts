@@ -1,13 +1,14 @@
-import {Plugin} from 'obsidian';
+import {Notice, Plugin} from 'obsidian';
 
 import {DEFAULT_SETTINGS, AdvancedPomodoroSettings, AdvancedPomodoroSettingTab} from "./settings";
 import { Timer, TimerState } from './timer';
 import { Logger } from './logger';
 import { playNotificationSound } from './notifications';
 import { getNoteSettings } from './note-settings';
+import { RibbonController } from './ribbon';
 
 
-enum WorkState {
+export enum WorkState {
 	Idle = 'idle',
 	Work = 'work',
 	Break = 'break',
@@ -16,18 +17,22 @@ enum WorkState {
 export default class AdvancedPomodoroPlugin extends Plugin {
 	settings: AdvancedPomodoroSettings;
 	timer: Timer;
-	private workState: WorkState = WorkState.Idle;
+	workState: WorkState = WorkState.Idle;
 	statusBarEl: any
 	pomodorosCount: number = 0;
 	logger: Logger;
 	intervalId: number | null = null;
+	ribbon: RibbonController;
 
 	async onload() {
 		await this.prepareSettings();
 
 		this.initializeStatusBar();
 		this.initializeTimer();
-		
+
+		this.ribbon = new RibbonController(this);
+		this.ribbon.register();
+
 		this.stayIdle();
 
 		this.addCommands();
@@ -62,7 +67,12 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 			id: 'stop-timer',
 			name: 'Stop Timer',
 			icon: 'square',
-			callback: () => this.stayIdle(),
+			callback: () => {
+				if (this.workState !== WorkState.Idle) {
+					new Notice('Timer stopped');
+				}
+				this.stayIdle();
+			},
 		});
 	}
 
@@ -72,10 +82,15 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 				if (newState !== TimerState.Running) {
 					this.clearUpdateStatusBarInterval();
 				}
-				
+
 				if (newState == TimerState.Running) {
 					this.setUpdateStatusBarInterval();
 				} else if (newState == TimerState.Finished) {
+					if (this.workState == WorkState.Work) {
+						new Notice('🍅 Pomodoro finished');
+					} else if (this.workState == WorkState.Break) {
+						new Notice('☕ Break finished');
+					}
 					if (this.settings.notification.enableSoundNotification) {
 						playNotificationSound();
 					}
@@ -87,6 +102,8 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 						this.stayIdle();
 					}
 				}
+
+				this.ribbon?.refresh();
 			},
 		});
 	}
@@ -107,6 +124,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 		this.workState = WorkState.Idle;
 		this.statusBarEl.setText('Start 🍅');
 		this.timer.stop();
+		this.ribbon?.refresh();
 	}
 	async startPomodoro() {
 		this.workState = WorkState.Work;
@@ -117,6 +135,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 		const workInterval = noteSettings.workInterval ?? this.settings.timer.workInterval;
 		
 		this.timer.start(workInterval * 1000 * 60);
+		new Notice(`🍅 Pomodoro started — ${workInterval}m`);
 		if (this.settings.logging.logOn == 'start') {
 			await this.logger.log(workInterval, activeFile, this.settings.logging);
 		}
@@ -141,6 +160,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 		}
 		
 		this.timer.start(interval * 1000 * 60);
+		new Notice(`☕ ${isLongBreak ? 'Long break' : 'Break'} — ${interval}m`);
 		if (this.settings.logging.logOn == 'end') {
 			await this.logger.log(interval, activeFile, this.settings.logging);
 		}
@@ -149,8 +169,10 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 	toggleTimerPause() {
 		if (this.timer.state == TimerState.Paused) {
 			this.timer.resume();
+			new Notice('Resumed');
 		} else if (this.timer.state == TimerState.Running) {
 			this.timer.pause();
+			new Notice('Paused');
 		}
 	}
 
@@ -160,9 +182,14 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 			if (this.timer.remainingMilliseconds <= 0) {
 				this.timer.finish();
 			} else {
-				this.statusBarEl.setText(`${this.getIcon()} ${this.timer.getFormattedTime()}`);
+				this.updateDisplays();
 			}
 		}, 100));
+	}
+
+	updateDisplays() {
+		this.statusBarEl.setText(`${this.getIcon()} ${this.timer.getFormattedTime()}`);
+		this.ribbon.refresh();
 	}
 
 	clearUpdateStatusBarInterval() {
@@ -184,6 +211,7 @@ export default class AdvancedPomodoroPlugin extends Plugin {
 
 	onunload() {
 		this.clearUpdateStatusBarInterval();
+		this.ribbon?.unregister();
 	}
 
 	async prepareSettings() {
